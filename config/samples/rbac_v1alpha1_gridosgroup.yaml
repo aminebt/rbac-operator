@@ -1,0 +1,9 @@
+apiVersion: rbac.security.gridos.gevernova.com/v1alpha1
+kind: GridOSGroup
+metadata:
+  labels:
+    app.kubernetes.io/name: rbac-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: gridosgroup-sample
+spec:
+  # TODO(user): Add fields here

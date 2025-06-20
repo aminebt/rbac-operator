@@ -1,0 +1,75 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.17.2
+  name: gridosroles.rbac.security.gridos.gevernova.com
+spec:
+  group: rbac.security.gridos.gevernova.com
+  names:
+    kind: GridOSRole
+    listKind: GridOSRoleList
+    plural: gridosroles
+    singular: gridosrole
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: GridOSRole is the Schema for the gridosroles API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: GridOSRoleSpec defines the desired state of GridOSRole.
+            properties:
+              permissions:
+                description: Foo is an example field of GridOSRole. Edit gridosrole_types.go
+                  to remove/update
+                items:
+                  type: string
+                type: array
+            type: object
+          status:
+            description: GridOSRoleStatus defines the observed state of GridOSRole.
+            properties:
+              bindings:
+                additionalProperties:
+                  type: string
+                type: object
+              groups:
+                description: |-
+                  INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+                  Important: Run "make" to regenerate code after modifying this file
+                items:
+                  type: string
+                type: array
+              lastMessage:
+                type: string
+              phase:
+                type: string
+            required:
+            - lastMessage
+            - phase
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}

@@ -1,0 +1,38 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - rbac.security.gridos.gevernova.com
+  resources:
+  - gridosgrouprolebindings
+  - gridosgroups
+  - gridosroles
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - rbac.security.gridos.gevernova.com
+  resources:
+  - gridosgrouprolebindings/finalizers
+  - gridosgroups/finalizers
+  - gridosroles/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - rbac.security.gridos.gevernova.com
+  resources:
+  - gridosgrouprolebindings/status
+  - gridosgroups/status
+  - gridosroles/status
+  verbs:
+  - get
+  - patch
+  - update
