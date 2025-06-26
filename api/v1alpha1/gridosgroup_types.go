@@ -96,10 +96,8 @@ func (gr *GridOSGroup) ToPlainObject() rbac.Group {
 
 func (groups *GridOSGroupList) ToPlainObject() []rbac.Group {
 	res := make([]rbac.Group, len(groups.Items))
-	for _, gr := range groups.Items {
-		res = append(res, rbac.Group{
-			Name: gr.Name,
-		})
+	for i, gr := range groups.Items {
+		res[i].Name = gr.Name
 	}
 	return res
 }
