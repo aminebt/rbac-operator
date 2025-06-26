@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"github.com/aminebt/rbac-operator/internal/controller/utils"
+	"github.com/aminebt/rbac-operator/rbac"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -85,4 +86,20 @@ type GridOSGroupList struct {
 
 func init() {
 	SchemeBuilder.Register(&GridOSGroup{}, &GridOSGroupList{})
+}
+
+func (gr *GridOSGroup) ToPlainObject() rbac.Group {
+	return rbac.Group{
+		Name: gr.Name,
+	}
+}
+
+func (groups *GridOSGroupList) ToPlainObject() []rbac.Group {
+	res := make([]rbac.Group, len(groups.Items))
+	for _, gr := range groups.Items {
+		res = append(res, rbac.Group{
+			Name: gr.Name,
+		})
+	}
+	return res
 }
