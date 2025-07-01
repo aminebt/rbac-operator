@@ -17,15 +17,12 @@ limitations under the License.
 package v1alpha1
 
 import (
+	rbac "github.com/aminebt/rbac-operator/rbac"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-type Group struct {
-	Name string `json:"name"`
-}
 
 // GridOSGroupRoleBindingSpec defines the desired state of GridOSGroupRoleBinding.
 type GridOSGroupRoleBindingSpec struct {
@@ -33,8 +30,8 @@ type GridOSGroupRoleBindingSpec struct {
 	// Important: Run "make" to regenerate code after modifying this file
 
 	// Foo is an example field of GridOSGroupRoleBinding. Edit gridosgrouprolebinding_types.go to remove/update
-	Group Group    `json:"group"`
-	Roles []string `json:"roles,omitempty"`
+	Group rbac.Group `json:"group"`
+	Roles []string   `json:"roles,omitempty"`
 }
 
 // GridOSGroupRoleBindingStatus defines the observed state of GridOSGroupRoleBinding.

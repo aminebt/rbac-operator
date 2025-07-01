@@ -32,6 +32,7 @@ import (
 	rbacv1alpha1 "github.com/aminebt/rbac-operator/api/v1alpha1"
 
 	"github.com/aminebt/rbac-operator/internal/controller/utils"
+	"github.com/aminebt/rbac-operator/internal/datastore"
 )
 
 const (
@@ -44,6 +45,7 @@ const (
 type GridOSGroupReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	datastore.DataStore
 }
 
 // +kubebuilder:rbac:groups=rbac.security.gridos.gevernova.com,resources=gridosgroups,verbs=get;list;watch;create;update;patch;delete
@@ -110,13 +112,14 @@ func (r *GridOSGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		log.Info("Appended Finalizer")
 	}
 
-	// //initialize status bindings
-	// if gr.Status.Bindings == nil {
-	// 	gr.Status.Bindings = make(map[string][]string)
-	// }
-	// if gr.Status.BoundRoles == nil {
-	// 	gr.Status.BoundRoles = make([]string, 0)
-	// }
+	if err := r.createGroup(ctx, gr); err != nil {
+		// if fail to delete the group, return with error so that it can be retried
+		msg := "unable to create Group"
+		log.Error(err, msg)
+		gr.Status.Update(rbacv1alpha1.DeletingStatusPhase, msg, err)
+		_ = r.Client.Status().Update(ctx, gr)
+		return ctrl.Result{}, err
+	}
 
 	gr.Status.Update(rbacv1alpha1.ReadyStatusPhase, successMessage, nil)
 
@@ -128,6 +131,13 @@ func (r *GridOSGroupReconciler) deleteGroup(ctx context.Context, gr *rbacv1alpha
 	log := logf.FromContext(ctx, "phase", "deleting group dependencies")
 	log.Info(fmt.Sprintf("cleaning up dependencies before deleting group %v in namespace %v", gr.GetName(), gr.GetNamespace()))
 	return nil
+}
+
+func (r *GridOSGroupReconciler) createGroup(ctx context.Context, gr *rbacv1alpha1.GridOSGroup) error {
+	log := logf.FromContext(ctx, "phase", "creating group")
+	log.Info(fmt.Sprintf("creating group %v in namespace %v", gr.GetName(), gr.GetNamespace()))
+	_, err := r.CreateGroup(gr.ToPlainObject())
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

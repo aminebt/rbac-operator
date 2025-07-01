@@ -19,6 +19,7 @@ package main
 import (
 	"crypto/tls"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -39,6 +40,7 @@ import (
 
 	rbacv1alpha1 "github.com/aminebt/rbac-operator/api/v1alpha1"
 	"github.com/aminebt/rbac-operator/internal/controller"
+	"github.com/aminebt/rbac-operator/internal/datastore"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -64,6 +66,7 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var tlsOpts []func(*tls.Config)
+	var backend string
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
 	flag.StringVar(&probeAddr, "health-probe-bind-address", ":8081", "The address the probe endpoint binds to.")
@@ -81,6 +84,7 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&backend, "datastore", "kubernetes", "The datastore where state is store. By default, state is only stored in resource status.")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -88,6 +92,29 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	ds, err := datastore.NewDataStore(backend)
+	defer ds.CleanUp()
+
+	//////// DELETE ME - Test pgds functions
+	// grName := "Test group"
+	// grId, err := ds.CreateGroup(rbac.Group{Name: grName})
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// println(grId)
+	// println("Getting group just created")
+	// gr, grId, err := ds.GetGroup(grName)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// println(grId)
+	// println(gr.Name)
+	// ds.CleanUp()
+	// os.Exit(0)
+	////////////////////////
+
+	fmt.Printf("%T", ds)
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -203,8 +230,9 @@ func main() {
 	}
 
 	if err = (&controller.GridOSGroupReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:    mgr.GetClient(),
+		Scheme:    mgr.GetScheme(),
+		DataStore: ds,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GridOSGroup")
 		os.Exit(1)
