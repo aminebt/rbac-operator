@@ -24,6 +24,7 @@ import (
 	k8serr "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/retry"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -195,6 +196,35 @@ func (r *GridOSGroupRoleBindingReconciler) Reconcile(ctx context.Context, req ct
 
 	}
 
+	// in case of GRB update, previously bound roles no longer bound --> need to remove binding
+	var rList rbacv1alpha1.GridOSRoleList
+	if err := r.List(ctx, &rList, client.MatchingFields{"status.bindings": grb.GetName()}); err != nil {
+		return ctrl.Result{}, err
+	}
+
+	currentRoles := sets.NewString(grb.Spec.Roles...)
+	for _, role := range rList.Items {
+		if !currentRoles.Has(role.Name) {
+			//role was deleted from GRB's roles - update role
+			err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
+				// fetch the latest role
+				latestRole := &rbacv1alpha1.GridOSRole{}
+				roleNamespacedName := types.NamespacedName{Namespace: grb.Namespace, Name: role.Name}
+				if err := r.Client.Get(ctx, roleNamespacedName, latestRole); err != nil {
+					return err
+				}
+				deleteBinding := true
+				latestRole.Status.UpdateBinding(grb.Name, grb.Spec.Group.Name, deleteBinding)
+				return r.Client.Status().Update(ctx, latestRole)
+			})
+
+			if err != nil {
+				log.Error(err, fmt.Sprintf("Failed to update role status bindings for %v/%v ", role.Namespace, role.Name))
+				return ctrl.Result{}, err
+			}
+		}
+	}
+
 	// now that roles are reconciled - if group not present return
 	if groupAbsent {
 		grb.Status.Update(rbacv1alpha1.ErrorStatusPhase, "Group Not Found", groupErr)
@@ -353,6 +383,24 @@ func (r *GridOSGroupRoleBindingReconciler) SetupWithManager(mgr ctrl.Manager) er
 		func(obj client.Object) []string {
 			grb := obj.(*rbacv1alpha1.GridOSGroupRoleBinding)
 			return grb.Spec.Roles // this is []string
+		},
+	); err != nil {
+		return err
+	}
+
+	// add an index field on Roles' status.bindings to facilitate querying roles that have the grb name in status
+	if err := mgr.GetFieldIndexer().IndexField(
+		context.Background(),
+		&rbacv1alpha1.GridOSRole{},
+		"status.bindings", // custom index name
+		func(obj client.Object) []string {
+			role := obj.(*rbacv1alpha1.GridOSRole)
+
+			var keys []string
+			for grbName := range role.Status.Bindings {
+				keys = append(keys, grbName)
+			}
+			return keys
 		},
 	); err != nil {
 		return err

@@ -25,7 +25,8 @@ type DataStore interface {
 func NewDataStore(backend string) (DataStore, error) {
 	switch backend {
 	case "kubernetes":
-		return nil, nil
+		kds, err := NewKubernetesDataStore()
+		return kds, err
 	case "postgres":
 		pgds, err := NewPostgresDataStore()
 		return pgds, err
