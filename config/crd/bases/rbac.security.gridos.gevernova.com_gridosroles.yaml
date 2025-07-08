@@ -14,7 +14,12 @@ spec:
     singular: gridosrole
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Current phase of Role
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: GridOSRole is the Schema for the gridosroles API.

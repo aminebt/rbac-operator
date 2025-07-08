@@ -53,6 +53,8 @@ func (s *GridOSGroupRoleBindingStatus) Update(phase StatusPhase, msg string, err
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Group",type=string,JSONPath=".spec.group.name",description="Related Group"
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=".status.phase",description="Current phase of GroupRoleBinding"
 
 // GridOSGroupRoleBinding is the Schema for the gridosgrouprolebindings API.
 type GridOSGroupRoleBinding struct {

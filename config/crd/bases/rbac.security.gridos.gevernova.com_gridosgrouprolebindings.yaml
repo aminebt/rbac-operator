@@ -14,7 +14,16 @@ spec:
     singular: gridosgrouprolebinding
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Related Group
+      jsonPath: .spec.group.name
+      name: Group
+      type: string
+    - description: Current phase of GroupRoleBinding
+      jsonPath: .status.phase
+      name: Status
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: GridOSGroupRoleBinding is the Schema for the gridosgrouprolebindings

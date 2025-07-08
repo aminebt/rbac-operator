@@ -65,6 +65,7 @@ func (s *GridOSGroupStatus) DeleteBindings(binding string) {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=".status.phase",description="Current phase of Group"
 
 // GridOSGroup is the Schema for the gridosgroups API.
 type GridOSGroup struct {

@@ -90,7 +90,7 @@ func (s *GridOSRoleStatus) UpdateBinding(binding, group string, deleteBinding bo
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=".status.phase",description="Current phase of Role"
 // GridOSRole is the Schema for the gridosroles API.
 type GridOSRole struct {
 	metav1.TypeMeta   `json:",inline"`
