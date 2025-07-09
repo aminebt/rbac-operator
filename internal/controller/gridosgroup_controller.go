@@ -116,7 +116,7 @@ func (r *GridOSGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		// if fail to delete the group, return with error so that it can be retried
 		msg := "unable to create Group"
 		log.Error(err, msg)
-		gr.Status.Update(rbacv1alpha1.DeletingStatusPhase, msg, err)
+		gr.Status.Update(rbacv1alpha1.ErrorStatusPhase, msg, err)
 		_ = r.Client.Status().Update(ctx, gr)
 		return ctrl.Result{}, err
 	}
@@ -127,12 +127,15 @@ func (r *GridOSGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 	return ctrl.Result{}, errors.Wrap(err, "could not update status")
 }
 
+// TBD - no need for this wrapper function
 func (r *GridOSGroupReconciler) deleteGroup(ctx context.Context, gr *rbacv1alpha1.GridOSGroup) error {
 	log := logf.FromContext(ctx, "phase", "deleting group dependencies")
 	log.Info(fmt.Sprintf("cleaning up dependencies before deleting group %v in namespace %v", gr.GetName(), gr.GetNamespace()))
-	return nil
+	_, err := r.DeleteGroup(gr.GetName())
+	return err
 }
 
+// TBD - no need for this wrapper function
 func (r *GridOSGroupReconciler) createGroup(ctx context.Context, gr *rbacv1alpha1.GridOSGroup) error {
 	log := logf.FromContext(ctx, "phase", "creating group")
 	log.Info(fmt.Sprintf("creating group %v in namespace %v", gr.GetName(), gr.GetNamespace()))

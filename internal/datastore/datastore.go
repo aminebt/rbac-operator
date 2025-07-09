@@ -9,11 +9,11 @@ import (
 type DataStore interface {
 	GetGroup(groupName string) (rbac.Group, int, error)
 	CreateGroup(gr rbac.Group) (int, error)
-	DeleteGroup(groupName string) (rbac.Group, error)
+	DeleteGroup(groupName string) (int, error)
 
-	GetRole(roleName string) (rbac.Role, error)
-	CreateUpdateRole(roleName string) (rbac.Role, error)
-	DeleteRole(roleName string) (rbac.Role, error)
+	GetRole(roleName string) (rbac.Role, int, error)
+	CreateRole(role rbac.Role) (int, error)
+	DeleteRole(roleName string) (int, error)
 
 	GetGRBinding(roleName string) (rbac.GroupRoleBinding, error)
 	CreateGRBinding(roleName string) (rbac.GroupRoleBinding, error)

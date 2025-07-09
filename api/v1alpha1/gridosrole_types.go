@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"github.com/aminebt/rbac-operator/internal/controller/utils"
+	"github.com/aminebt/rbac-operator/rbac"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -111,4 +112,11 @@ type GridOSRoleList struct {
 
 func init() {
 	SchemeBuilder.Register(&GridOSRole{}, &GridOSRoleList{})
+}
+
+func (role *GridOSRole) ToPlainObject() rbac.Role {
+	return rbac.Role{
+		Name:        role.Name,
+		Permissions: role.Spec.Permissions,
+	}
 }

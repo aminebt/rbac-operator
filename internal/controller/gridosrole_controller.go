@@ -30,12 +30,14 @@ import (
 
 	rbacv1alpha1 "github.com/aminebt/rbac-operator/api/v1alpha1"
 	"github.com/aminebt/rbac-operator/internal/controller/utils"
+	"github.com/aminebt/rbac-operator/internal/datastore"
 )
 
 // GridOSRoleReconciler reconciles a GridOSRole object
 type GridOSRoleReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+	datastore.DataStore
 }
 
 // +kubebuilder:rbac:groups=rbac.security.gridos.gevernova.com,resources=gridosroles,verbs=get;list;watch;create;update;patch;delete
@@ -70,9 +72,9 @@ func (r *GridOSRoleReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Info("Role is marked for deletion")
 		if utils.ContainsString(role.ObjectMeta.Finalizers, finalizerID) {
 			// finalizer is present, so handle dependencies
-			if err := r.deleteRole(ctx, role); err != nil {
+			if _, err := r.DeleteRole(role.GetName()); err != nil {
 				// if fail to delete the role, return with error so that it can be retried
-				msg := "unable to delete Group"
+				msg := "unable to delete Role"
 				log.Error(err, msg)
 				role.Status.Update(rbacv1alpha1.DeletingStatusPhase, msg, err)
 				return ctrl.Result{}, errors.Wrap(r.Client.Status().Update(ctx, role), "could not update status")
@@ -111,14 +113,33 @@ func (r *GridOSRoleReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// 	fmt.Println("initialize Status.BoundGroups")
 	// }
 
+	if err := r.createRole(ctx, role); err != nil {
+		// if fail to delete the group, return with error so that it can be retried
+		msg := "unable to create Role"
+		log.Error(err, msg)
+		role.Status.Update(rbacv1alpha1.ErrorStatusPhase, msg, err)
+		_ = r.Client.Status().Update(ctx, role)
+		return ctrl.Result{}, err
+	}
+
 	role.Status.Update(rbacv1alpha1.ReadyStatusPhase, successMessage, nil)
 	return ctrl.Result{}, errors.Wrap(r.Client.Status().Update(ctx, role), "could not update status")
 }
 
-func (r *GridOSRoleReconciler) deleteRole(ctx context.Context, role *rbacv1alpha1.GridOSRole) error {
-	log := logf.FromContext(ctx, "phase", "deleting role")
-	log.Info(fmt.Sprintf("cleaning up before deleting role %v in namespace %v", role.GetName(), role.GetNamespace()))
-	return nil
+// TBD - no need for this wrapper function
+// func (r *GridOSRoleReconciler) deleteRole(ctx context.Context, role *rbacv1alpha1.GridOSRole) error {
+// 	log := logf.FromContext(ctx, "phase", "deleting group dependencies")
+// 	log.Info(fmt.Sprintf("cleaning up dependencies before deleting group %v in namespace %v", role.GetName(), role.GetNamespace()))
+// 	_, err := r.DeleteRole(role.GetName())
+// 	return err
+// }
+
+// TBD - no need for this wrapper function
+func (r *GridOSRoleReconciler) createRole(ctx context.Context, role *rbacv1alpha1.GridOSRole) error {
+	log := logf.FromContext(ctx, "phase", "creating role")
+	log.Info(fmt.Sprintf("creating role %v in namespace %v", role.GetName(), role.GetNamespace()))
+	_, err := r.CreateRole(role.ToPlainObject())
+	return err
 }
 
 // SetupWithManager sets up the controller with the Manager.

@@ -33,21 +33,23 @@ func (kds *KubernetesDataStore) CreateGroup(gr rbac.Group) (int, error) {
 	return 0, nil
 }
 
-func (kds *KubernetesDataStore) DeleteGroup(groupName string) (rbac.Group, error) {
-	return rbac.Group{}, nil
+func (kds *KubernetesDataStore) DeleteGroup(groupName string) (int, error) {
+	return 0, nil
 }
 
 // Role methods
-func (kds *KubernetesDataStore) GetRole(roleName string) (rbac.Role, error) {
-	return rbac.Role{}, nil
+func (kds *KubernetesDataStore) GetRole(roleName string) (rbac.Role, int, error) {
+	return rbac.Role{}, 0, nil
 }
 
-func (kds *KubernetesDataStore) CreateUpdateRole(roleName string) (rbac.Role, error) {
-	return rbac.Role{}, nil
+func (kds *KubernetesDataStore) CreateRole(role rbac.Role) (int, error) {
+	//TBD
+	return 0, nil
 }
 
-func (kds *KubernetesDataStore) DeleteRole(roleName string) (rbac.Role, error) {
-	return rbac.Role{}, nil
+func (kds *KubernetesDataStore) DeleteRole(roleName string) (int, error) {
+	//TBD
+	return 0, nil
 }
 
 // GRBinding
