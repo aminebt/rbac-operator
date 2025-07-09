@@ -31,6 +31,7 @@ import (
 	rbacv1alpha1 "github.com/aminebt/rbac-operator/api/v1alpha1"
 	"github.com/aminebt/rbac-operator/internal/controller/utils"
 	"github.com/aminebt/rbac-operator/internal/datastore"
+	"github.com/aminebt/rbac-operator/internal/env"
 )
 
 // GridOSRoleReconciler reconciles a GridOSRole object
@@ -38,6 +39,7 @@ type GridOSRoleReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	datastore.DataStore
+	Environments map[string]env.Environment
 }
 
 // +kubebuilder:rbac:groups=rbac.security.gridos.gevernova.com,resources=gridosroles,verbs=get;list;watch;create;update;patch;delete
@@ -64,6 +66,12 @@ func (r *GridOSRoleReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	env, err := r.getEnvironment(role)
+	if err != nil {
+		log.Error(err, "unable to get Role's environment")
+		return ctrl.Result{}, err
+	}
+
 	msg := fmt.Sprintf("received reconcile request for %q (namespace: %q)", role.GetName(), role.GetNamespace())
 	log.Info(msg)
 
@@ -72,7 +80,7 @@ func (r *GridOSRoleReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		log.Info("Role is marked for deletion")
 		if utils.ContainsString(role.ObjectMeta.Finalizers, finalizerID) {
 			// finalizer is present, so handle dependencies
-			if _, err := r.DeleteRole(role.GetName()); err != nil {
+			if _, err := r.DeleteRole(env, role.GetName()); err != nil {
 				// if fail to delete the role, return with error so that it can be retried
 				msg := "unable to delete Role"
 				log.Error(err, msg)
@@ -113,7 +121,7 @@ func (r *GridOSRoleReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	// 	fmt.Println("initialize Status.BoundGroups")
 	// }
 
-	if err := r.createRole(ctx, role); err != nil {
+	if err := r.createRole(ctx, env, role); err != nil {
 		// if fail to delete the group, return with error so that it can be retried
 		msg := "unable to create Role"
 		log.Error(err, msg)
@@ -134,11 +142,20 @@ func (r *GridOSRoleReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 // 	return err
 // }
 
+func (r *GridOSRoleReconciler) getEnvironment(role *rbacv1alpha1.GridOSRole) (env.Environment, error) {
+	namespace := role.GetNamespace()
+	envt, ok := r.Environments[namespace]
+	if !ok {
+		return env.Environment{}, errors.New("namespace does not correspond to any environment")
+	}
+	return envt, nil
+}
+
 // TBD - no need for this wrapper function
-func (r *GridOSRoleReconciler) createRole(ctx context.Context, role *rbacv1alpha1.GridOSRole) error {
+func (r *GridOSRoleReconciler) createRole(ctx context.Context, env env.Environment, role *rbacv1alpha1.GridOSRole) error {
 	log := logf.FromContext(ctx, "phase", "creating role")
 	log.Info(fmt.Sprintf("creating role %v in namespace %v", role.GetName(), role.GetNamespace()))
-	_, err := r.CreateRole(role.ToPlainObject())
+	_, err := r.CreateRole(env, role.ToPlainObject())
 	return err
 }
 

@@ -33,6 +33,7 @@ import (
 
 	"github.com/aminebt/rbac-operator/internal/controller/utils"
 	"github.com/aminebt/rbac-operator/internal/datastore"
+	"github.com/aminebt/rbac-operator/internal/env"
 )
 
 const (
@@ -46,6 +47,7 @@ type GridOSGroupReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 	datastore.DataStore
+	Environments map[string]env.Environment
 }
 
 // +kubebuilder:rbac:groups=rbac.security.gridos.gevernova.com,resources=gridosgroups,verbs=get;list;watch;create;update;patch;delete
@@ -72,7 +74,13 @@ func (r *GridOSGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	msg := fmt.Sprintf("received reconcile request for %q (namespace: %q)", gr.GetName(), gr.GetNamespace())
+	env, err := r.getEnvironment(gr)
+	if err != nil {
+		log.Error(err, "unable to get Group's environment")
+		return ctrl.Result{}, err
+	}
+
+	msg := fmt.Sprintf("received reconcile request for %q (namespace: %q, environment: %q)", gr.GetName(), gr.GetNamespace(), env.Name)
 	log.Info(msg)
 
 	// is object marked for deletion ?
@@ -80,7 +88,7 @@ func (r *GridOSGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		log.Info("Group is marked for deletion")
 		if utils.ContainsString(gr.ObjectMeta.Finalizers, finalizerID) {
 			// finalizer is present, so handle dependencies
-			if err := r.deleteGroup(ctx, gr); err != nil {
+			if err := r.deleteGroup(ctx, env, gr); err != nil {
 				// if fail to delete the group, return with error so that it can be retried
 				msg := "unable to delete Group"
 				log.Error(err, msg)
@@ -112,7 +120,7 @@ func (r *GridOSGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 		log.Info("Appended Finalizer")
 	}
 
-	if err := r.createGroup(ctx, gr); err != nil {
+	if err := r.createGroup(ctx, env, gr); err != nil {
 		// if fail to delete the group, return with error so that it can be retried
 		msg := "unable to create Group"
 		log.Error(err, msg)
@@ -123,23 +131,32 @@ func (r *GridOSGroupReconciler) Reconcile(ctx context.Context, req ctrl.Request)
 
 	gr.Status.Update(rbacv1alpha1.ReadyStatusPhase, successMessage, nil)
 
-	err := r.Client.Status().Update(ctx, gr)
+	err = r.Client.Status().Update(ctx, gr)
 	return ctrl.Result{}, errors.Wrap(err, "could not update status")
 }
 
+func (r *GridOSGroupReconciler) getEnvironment(gr *rbacv1alpha1.GridOSGroup) (env.Environment, error) {
+	namespace := gr.GetNamespace()
+	envt, ok := r.Environments[namespace]
+	if !ok {
+		return env.Environment{}, errors.New("namespace does not correspond to any environment")
+	}
+	return envt, nil
+}
+
 // TBD - no need for this wrapper function
-func (r *GridOSGroupReconciler) deleteGroup(ctx context.Context, gr *rbacv1alpha1.GridOSGroup) error {
+func (r *GridOSGroupReconciler) deleteGroup(ctx context.Context, env env.Environment, gr *rbacv1alpha1.GridOSGroup) error {
 	log := logf.FromContext(ctx, "phase", "deleting group dependencies")
 	log.Info(fmt.Sprintf("cleaning up dependencies before deleting group %v in namespace %v", gr.GetName(), gr.GetNamespace()))
-	_, err := r.DeleteGroup(gr.GetName())
+	_, err := r.DeleteGroup(env, gr.GetName())
 	return err
 }
 
 // TBD - no need for this wrapper function
-func (r *GridOSGroupReconciler) createGroup(ctx context.Context, gr *rbacv1alpha1.GridOSGroup) error {
+func (r *GridOSGroupReconciler) createGroup(ctx context.Context, env env.Environment, gr *rbacv1alpha1.GridOSGroup) error {
 	log := logf.FromContext(ctx, "phase", "creating group")
 	log.Info(fmt.Sprintf("creating group %v in namespace %v", gr.GetName(), gr.GetNamespace()))
-	_, err := r.CreateGroup(gr.ToPlainObject())
+	_, err := r.CreateGroup(env, gr.ToPlainObject())
 	return err
 }
 

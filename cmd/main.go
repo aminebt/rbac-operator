@@ -42,6 +42,7 @@ import (
 	rbacv1alpha1 "github.com/aminebt/rbac-operator/api/v1alpha1"
 	"github.com/aminebt/rbac-operator/internal/controller"
 	"github.com/aminebt/rbac-operator/internal/datastore"
+	"github.com/aminebt/rbac-operator/internal/env"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -206,8 +207,16 @@ func main() {
 		})
 	}
 
-	// XXX hardcoded namespaces - read from config later
-	watchedNamespaces := []string{"foundation-cluster-zerotrust", "foundation-env-default", "foundation-env-qa"}
+	// TBD - for now hardcoded environments / namespaces - read from config later
+	err, watchedNamespaces, envMap := env.ReadEnvironments()
+	if err != nil {
+		setupLog.Error(err, "unable to load environments")
+		os.Exit(1)
+	}
+
+	//XXX remove
+	fmt.Printf("\n\nwatchedNamespaces: %v\n", watchedNamespaces)
+
 	nsMap := make(map[string]cache.Config)
 	for _, ns := range watchedNamespaces {
 		nsMap[ns] = cache.Config{} // empty config means: include this ns
@@ -241,17 +250,19 @@ func main() {
 	}
 
 	if err = (&controller.GridOSGroupReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		DataStore: ds,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		DataStore:    ds,
+		Environments: envMap,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GridOSGroup")
 		os.Exit(1)
 	}
 	if err = (&controller.GridOSRoleReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		DataStore: ds,
+		Client:       mgr.GetClient(),
+		Scheme:       mgr.GetScheme(),
+		DataStore:    ds,
+		Environments: envMap,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "GridOSRole")
 		os.Exit(1)

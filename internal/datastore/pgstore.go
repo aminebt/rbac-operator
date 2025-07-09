@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/aminebt/rbac-operator/internal/env"
 	"github.com/aminebt/rbac-operator/rbac"
-	_ "github.com/lib/pq"
+	"github.com/lib/pq"
 )
 
 // TBD - read from configfile and env var (password)
@@ -59,8 +60,9 @@ func NewPostgresDataStore() (DataStore, error) {
 	return pgds, nil
 }
 
-func (pgds *PostgresDataStore) GetGroup(groupName string) (rbac.Group, int, error) {
-	sqlStatement := `SELECT * FROM user_groups WHERE group_name=$1;`
+func (pgds *PostgresDataStore) GetGroup(env env.Environment, groupName string) (rbac.Group, int, error) {
+	tableName := strings.Join([]string{pq.QuoteIdentifier(env.Name), "user_groups"}, ".")
+	sqlStatement := fmt.Sprintf(`SELECT * FROM %s WHERE group_name=$1;`, tableName)
 	var gr pgGroup
 	row := pgds.Db.QueryRow(sqlStatement, groupName)
 	err := row.Scan(&gr.id, &gr.Name, &gr.description)
@@ -76,24 +78,20 @@ func (pgds *PostgresDataStore) GetGroup(groupName string) (rbac.Group, int, erro
 	}
 }
 
-func (pgds *PostgresDataStore) CreateGroup(gr rbac.Group) (int, error) {
-	// sqlStatement := `
-	// INSERT INTO user_groups (group_name, description)
-	// VALUES ($1, $2)
-	// ON CONFLICT (group_name) DO NOTHING
-	// `
+func (pgds *PostgresDataStore) CreateGroup(env env.Environment, gr rbac.Group) (int, error) {
+	tableName := strings.Join([]string{pq.QuoteIdentifier(env.Name), "user_groups"}, ".")
 
-	sqlStatement := `
+	sqlStatement := fmt.Sprintf(`
 	WITH inserted AS (
-		INSERT INTO user_groups (group_name, description)
+		INSERT INTO %s (group_name, description)
 		VALUES ($1, $2)
 		ON CONFLICT (group_name) DO NOTHING
 		RETURNING id
 	)
 	SELECT id FROM inserted
 	UNION ALL
-	SELECT id FROM user_groups WHERE group_name = $1 AND NOT EXISTS (SELECT 1 FROM inserted);	
-	`
+	SELECT id FROM %s WHERE group_name = $1 AND NOT EXISTS (SELECT 1 FROM inserted);	
+	`, tableName, tableName)
 
 	var id int
 	err := pgds.Db.QueryRow(sqlStatement, gr.Name, "placeholder description").Scan(&id)
@@ -104,12 +102,13 @@ func (pgds *PostgresDataStore) CreateGroup(gr rbac.Group) (int, error) {
 	return id, nil
 }
 
-func (pgds *PostgresDataStore) DeleteGroup(groupName string) (int, error) {
-	sqlStatement := `
-	DELETE FROM user_groups
+func (pgds *PostgresDataStore) DeleteGroup(env env.Environment, groupName string) (int, error) {
+	tableName := strings.Join([]string{pq.QuoteIdentifier(env.Name), "user_groups"}, ".")
+	sqlStatement := fmt.Sprintf(`
+	DELETE FROM %s
     WHERE group_name = $1 
 	RETURNING id;	
-	`
+	`, tableName)
 	var id int
 	err := pgds.Db.QueryRow(sqlStatement, groupName).Scan(&id)
 	switch err {
@@ -125,8 +124,9 @@ func (pgds *PostgresDataStore) DeleteGroup(groupName string) (int, error) {
 }
 
 // Role methods
-func (pgds *PostgresDataStore) GetRole(roleName string) (rbac.Role, int, error) {
-	sqlStatement := `SELECT * FROM roles WHERE role_name=$1;`
+func (pgds *PostgresDataStore) GetRole(env env.Environment, roleName string) (rbac.Role, int, error) {
+	tableName := strings.Join([]string{pq.QuoteIdentifier(env.Name), "roles"}, ".")
+	sqlStatement := fmt.Sprintf(`SELECT * FROM %s WHERE role_name=$1;`, tableName)
 	var role pgRole
 	row := pgds.Db.QueryRow(sqlStatement, roleName)
 	err := row.Scan(&role.id, &role.Name, &role.description)
@@ -143,18 +143,19 @@ func (pgds *PostgresDataStore) GetRole(roleName string) (rbac.Role, int, error) 
 }
 
 // TBD split into functions - this is too long
-func (pgds *PostgresDataStore) CreateRole(role rbac.Role) (int, error) {
-	sqlStatement := `
+func (pgds *PostgresDataStore) CreateRole(env env.Environment, role rbac.Role) (int, error) {
+	tableName := strings.Join([]string{pq.QuoteIdentifier(env.Name), "roles"}, ".")
+	sqlStatement := fmt.Sprintf(`
 	WITH inserted AS (
-		INSERT INTO roles (role_name, description)
+		INSERT INTO %s (role_name, description)
 		VALUES ($1, $2)
 		ON CONFLICT (role_name) DO NOTHING
 		RETURNING id
 	)
 	SELECT id FROM inserted
 	UNION ALL
-	SELECT id FROM roles WHERE role_name = $1 AND NOT EXISTS (SELECT 1 FROM inserted);
-	`
+	SELECT id FROM %s WHERE role_name = $1 AND NOT EXISTS (SELECT 1 FROM inserted);
+	`, tableName, tableName)
 
 	var roleId int
 	err := pgds.Db.QueryRow(sqlStatement, role.Name, "placeholder description").Scan(&roleId)
@@ -171,19 +172,21 @@ func (pgds *PostgresDataStore) CreateRole(role rbac.Role) (int, error) {
 		permQuotedNames[i] = fmt.Sprintf("'%s'", perm)
 	}
 
+	// TBD make safer by using $1, $2, $3, etc dynamically
+	tableName = strings.Join([]string{pq.QuoteIdentifier(env.Name), "permissions"}, ".")
 	sqlStatement = fmt.Sprintf(`
 	WITH inserted AS (
-		INSERT INTO permissions (permission_name, description)
+		INSERT INTO  %s (permission_name, description)
 		VALUES %s
 		ON CONFLICT (permission_name) DO NOTHING
 		RETURNING id
     )
 	SELECT id FROM inserted
 	UNION ALL 
-	SELECT id FROM permissions WHERE permission_name in (%s);
-	`, strings.Join(perms, ","), strings.Join(permQuotedNames, ","))
+	SELECT id FROM %s WHERE permission_name in (%s);
+	`, tableName, strings.Join(perms, ","), tableName, strings.Join(permQuotedNames, ","))
 
-	log.Printf("\n \n SQL query to insert permissions : %v \n", sqlStatement)
+	//log.Printf("\n \n SQL query to insert permissions : %v \n", sqlStatement)
 	idRows, err := pgds.Db.Query(sqlStatement)
 	if err != nil {
 		log.Printf("error while inserting permissions : %v \n", err)
@@ -197,8 +200,6 @@ func (pgds *PostgresDataStore) CreateRole(role rbac.Role) (int, error) {
 		permIds = append(permIds, permId)
 	}
 
-	fmt.Printf("XXX remove me XXX - permission ids: %v \n", permIds)
-
 	if err = idRows.Err(); err != nil {
 		log.Printf("error while iterating over permissions : %v \n", err)
 		return 0, err
@@ -211,11 +212,12 @@ func (pgds *PostgresDataStore) CreateRole(role rbac.Role) (int, error) {
 		roleToPerms[i] = fmt.Sprintf("(%v, %v )", roleId, permId)
 	}
 
+	tableName = strings.Join([]string{pq.QuoteIdentifier(env.Name), "role_permission"}, ".")
 	sqlStatement = fmt.Sprintf(`
-	INSERT INTO role_permission (role_id, permission_id)
+	INSERT INTO %s (role_id, permission_id)
 	VALUES %s
 	ON CONFLICT (role_id, permission_id) DO NOTHING
-	`, strings.Join(roleToPerms, ","))
+	`, tableName, strings.Join(roleToPerms, ","))
 
 	_, err = pgds.Db.Query(sqlStatement)
 	if err != nil {
@@ -230,10 +232,10 @@ func (pgds *PostgresDataStore) CreateRole(role rbac.Role) (int, error) {
 	}
 
 	sqlStatement = fmt.Sprintf(`
-	DELETE FROM role_permission
+	DELETE FROM %s
     WHERE role_id = %v
 	AND permission_id NOT IN (%s)
-	`, roleId, strings.Join(permIdsString, ","))
+	`, tableName, roleId, strings.Join(permIdsString, ","))
 
 	_, err = pgds.Db.Exec(sqlStatement)
 	if err != nil {
@@ -247,12 +249,13 @@ func (pgds *PostgresDataStore) CreateRole(role rbac.Role) (int, error) {
 
 }
 
-func (pgds *PostgresDataStore) DeleteRole(roleName string) (int, error) {
-	sqlStatement := `
-	DELETE FROM roles
+func (pgds *PostgresDataStore) DeleteRole(env env.Environment, roleName string) (int, error) {
+	tableName := strings.Join([]string{pq.QuoteIdentifier(env.Name), "roles"}, ".")
+	sqlStatement := fmt.Sprintf(`
+	DELETE FROM %s
     WHERE role_name = $1 
 	RETURNING id;	
-	`
+	`, tableName)
 	var id int
 	err := pgds.Db.QueryRow(sqlStatement, roleName).Scan(&id)
 	switch err {
@@ -268,14 +271,14 @@ func (pgds *PostgresDataStore) DeleteRole(roleName string) (int, error) {
 }
 
 // GRBinding
-func (pgds *PostgresDataStore) GetGRBinding(roleName string) (rbac.GroupRoleBinding, error) {
+func (pgds *PostgresDataStore) GetGRBinding(env env.Environment, roleName string) (rbac.GroupRoleBinding, error) {
 	return rbac.GroupRoleBinding{}, nil
 }
 
-func (pgds *PostgresDataStore) CreateGRBinding(roleName string) (rbac.GroupRoleBinding, error) {
+func (pgds *PostgresDataStore) CreateGRBinding(env env.Environment, roleName string) (rbac.GroupRoleBinding, error) {
 	return rbac.GroupRoleBinding{}, nil
 }
 
-func (pgds *PostgresDataStore) DeleteGRBinding(roleName string) (rbac.GroupRoleBinding, error) {
+func (pgds *PostgresDataStore) DeleteGRBinding(env env.Environment, roleName string) (rbac.GroupRoleBinding, error) {
 	return rbac.GroupRoleBinding{}, nil
 }

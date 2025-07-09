@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/aminebt/rbac-operator/internal/env"
 	"github.com/aminebt/rbac-operator/rbac"
 )
 
@@ -25,42 +26,42 @@ func (kds *KubernetesDataStore) CleanUp() {
 	kds.logger.Info("Nothing to clean up for Kubernetes DataStore")
 }
 
-func (kds *KubernetesDataStore) GetGroup(groupName string) (rbac.Group, int, error) {
+func (kds *KubernetesDataStore) GetGroup(env env.Environment, groupName string) (rbac.Group, int, error) {
 	return rbac.Group{}, 0, nil
 }
 
-func (kds *KubernetesDataStore) CreateGroup(gr rbac.Group) (int, error) {
+func (kds *KubernetesDataStore) CreateGroup(env env.Environment, gr rbac.Group) (int, error) {
 	return 0, nil
 }
 
-func (kds *KubernetesDataStore) DeleteGroup(groupName string) (int, error) {
+func (kds *KubernetesDataStore) DeleteGroup(env env.Environment, groupName string) (int, error) {
 	return 0, nil
 }
 
 // Role methods
-func (kds *KubernetesDataStore) GetRole(roleName string) (rbac.Role, int, error) {
+func (kds *KubernetesDataStore) GetRole(env env.Environment, roleName string) (rbac.Role, int, error) {
 	return rbac.Role{}, 0, nil
 }
 
-func (kds *KubernetesDataStore) CreateRole(role rbac.Role) (int, error) {
+func (kds *KubernetesDataStore) CreateRole(env env.Environment, role rbac.Role) (int, error) {
 	//TBD
 	return 0, nil
 }
 
-func (kds *KubernetesDataStore) DeleteRole(roleName string) (int, error) {
+func (kds *KubernetesDataStore) DeleteRole(env env.Environment, roleName string) (int, error) {
 	//TBD
 	return 0, nil
 }
 
 // GRBinding
-func (kds *KubernetesDataStore) GetGRBinding(roleName string) (rbac.GroupRoleBinding, error) {
+func (kds *KubernetesDataStore) GetGRBinding(env env.Environment, roleName string) (rbac.GroupRoleBinding, error) {
 	return rbac.GroupRoleBinding{}, nil
 }
 
-func (kds *KubernetesDataStore) CreateGRBinding(roleName string) (rbac.GroupRoleBinding, error) {
+func (kds *KubernetesDataStore) CreateGRBinding(env env.Environment, roleName string) (rbac.GroupRoleBinding, error) {
 	return rbac.GroupRoleBinding{}, nil
 }
 
-func (kds *KubernetesDataStore) DeleteGRBinding(roleName string) (rbac.GroupRoleBinding, error) {
+func (kds *KubernetesDataStore) DeleteGRBinding(env env.Environment, roleName string) (rbac.GroupRoleBinding, error) {
 	return rbac.GroupRoleBinding{}, nil
 }
